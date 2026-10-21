@@ -54,7 +54,9 @@ Briefs are saved to `briefs/YYYY-MM-DD.md`. If the `claude` command is not insta
 
 Two habits make the briefs dramatically better:
 
-1. **Notes.** Drop short `.md` or `.txt` files into `notes/`: what happened, what you are worried about, what a client said. The five most recent notes are read before every brief.
+1. **Notes.** Drop short `.md` or `.txt` files into `notes/`: what happened, what you are worried about, what a client said. The five most recent notes are read before every brief (up to 8,000 characters each, so standing corrections at the end of a long note still count).
+
+   **Pinned notes.** A note whose name starts with an underscore, such as `notes/_leads.md`, `notes/_open-invoices.md` or `notes/_revenue-scorecard.md`, is a pinned note: a live state file you or your agents keep current. Every pinned note is read before every brief, in name order, even on days it did not change, and the council treats it as current fact. Pinned notes are read up to 4,000 characters each, so keep them to the current state rather than a running history.
 
 2. **Brief memory.** The three most recent briefs are read newest first. The council compares their Top 3 lists to today's facts, so recurring priorities cannot quietly roll forward forever.
 
@@ -85,4 +87,28 @@ node scripts/self-update.js --status   # see the setting and the last check
 node scripts/self-update.js --now      # check and update right now
 node scripts/self-update.js --off      # turn weekly updates off
 node scripts/self-update.js --on       # turn them back on
+node scripts/self-update.js --realign  # only if it tells you to (see below)
 ```
+
+### If the update says your copy "has its own commits"
+
+In early October 2026 this repo's published history was rewritten once (the same files, with the author details on the old commits changed). A copy cloned before that still holds the old versions of those commits, so a plain update cannot move it forward and used to report "has your own commits" every week.
+
+The updater now recognises that exact case: when every commit only your copy has is an old copy of one of this project's commits, and your files match the project exactly, it says so and offers a safe realignment:
+
+```
+node scripts/self-update.js --realign
+```
+
+That keeps your old history on a backup branch (`allsorted-backup/pre-realign-<date>`), backs up your config, notes and other personal files, moves your copy onto the current history without changing a single file, then updates normally (self-test and roll back included). Your `config/`, `notes/` and `briefs/` files are never touched.
+
+If your copy is too old to have `scripts/self-update.js`, or you prefer to do it by hand, this is the same thing in four commands, run from this folder:
+
+```
+git status                                        # must show no changed tracked files
+git branch allsorted-backup/pre-realign HEAD      # keep your old history
+git fetch origin
+git reset --keep origin/main                      # your untracked config, notes and briefs stay put
+```
+
+If you made commits of your own, the updater will not offer a realignment. Keep them on a branch (`git branch my-changes`) and ask your agent to re-apply them on top of `origin/main`.

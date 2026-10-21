@@ -27,7 +27,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 const PKG_ROOT = path.resolve(__dirname, '..');
 
 function home() {
@@ -80,22 +80,56 @@ function validateConfig(cfg) {
   return problems;
 }
 
+// Pinned notes are live state files (notes/_leads.md, notes/_open-invoices.md)
+// that the owner or their agents keep current. They are always read, in name
+// order, whether or not they changed today. Ordinary notes are the newest few.
+const PINNED_NOTE_MAX_CHARS = 4000;
+const NOTE_MAX_CHARS = 8000;
+
+function isPinnedNote(file) {
+  return /^_.*\.md$/i.test(file);
+}
+
 function gatherNotes(root, limit) {
   const dir = path.join(root, 'notes');
   if (!fs.existsSync(dir)) return null;
-  const files = fs
-    .readdirSync(dir)
-    .filter((f) => /\.(md|txt)$/i.test(f))
+  // statSync follows symbolic links, so a state file linked into notes/ counts.
+  const entries = fs.readdirSync(dir).filter((f) => {
+    if (!/\.(md|txt)$/i.test(f)) return false;
+    try {
+      return fs.statSync(path.join(dir, f)).isFile();
+    } catch (e) {
+      return false;
+    }
+  });
+  const pinned = entries
+    .filter(isPinnedNote)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const ordinary = entries
+    .filter((f) => !isPinnedNote(f))
     .map((f) => {
       const p = path.join(dir, f);
       return { file: f, path: p, mtime: fs.statSync(p).mtimeMs };
     })
-    .sort((a, b) => b.mtime - a.mtime)
+    .sort((a, b) => b.mtime - a.mtime || (a.file < b.file ? -1 : 1))
     .slice(0, limit || 5);
-  if (files.length === 0) return null;
-  return files
-    .map((f) => `--- note: ${f.file} ---\n${readIf(f.path, 4000) || ''}`)
-    .join('\n\n');
+  if (pinned.length === 0 && ordinary.length === 0) return null;
+  const blocks = pinned.map(
+    (f) => `--- pinned note: ${f} ---\n${readIf(path.join(dir, f), PINNED_NOTE_MAX_CHARS) || ''}`
+  );
+  for (const f of ordinary) {
+    blocks.push(`--- note: ${f.file} ---\n${readIf(f.path, NOTE_MAX_CHARS) || ''}`);
+  }
+  return blocks.join('\n\n');
+}
+
+// Fill {{PLACEHOLDERS}} in one pass with a replacer function, so text that
+// contains $&, $$ or $' (prices, shell snippets) is copied literally and a
+// value that happens to contain {{ANOTHER}} is never filled a second time.
+function fillTemplate(template, values) {
+  return template.replace(/\{\{([A-Z_]+)\}\}/g, (match, key) =>
+    Object.prototype.hasOwnProperty.call(values, key) ? String(values[key]) : match
+  );
 }
 
 function recentBriefs(root, limit) {
@@ -135,14 +169,15 @@ function buildPrompt(opts) {
   const notes = gatherNotes(root, 5);
   const previousBriefs = recentBriefs(root, 3);
   const learning = readIf(path.join(root, 'LEARNING.md'), 8000);
-  return template
-    .replace('{{TODAY}}', today())
-    .replace('{{MODE}}', weekly ? 'WEEKLY REVIEW' : 'DAILY BRIEF')
-    .replace('{{COUNCIL_JSON}}', JSON.stringify(council, null, 2))
-    .replace('{{BUSINESS_JSON}}', JSON.stringify(cfg, null, 2))
-    .replace('{{NOTES}}', notes || 'No recent notes provided.')
-    .replace('{{PREVIOUS_BRIEFS}}', previousBriefs || '(no previous briefs yet)')
-    .replace('{{LEARNING}}', learning || 'No lessons recorded yet.');
+  return fillTemplate(template, {
+    TODAY: today(),
+    MODE: weekly ? 'WEEKLY REVIEW' : 'DAILY BRIEF',
+    COUNCIL_JSON: JSON.stringify(council, null, 2),
+    BUSINESS_JSON: JSON.stringify(cfg, null, 2),
+    NOTES: notes || 'No recent notes provided.',
+    PREVIOUS_BRIEFS: previousBriefs || '(no previous briefs yet)',
+    LEARNING: learning || 'No lessons recorded yet.',
+  });
 }
 
 function buildTriagePrompt(root, itemsText) {
@@ -164,10 +199,11 @@ function buildTriagePrompt(root, itemsText) {
   const itemsBlock = items.length
     ? items.map((item, index) => `${index + 1}. ${item}`).join('\n')
     : 'No items provided; triage using only the business config goals, moneyWatch, and active projects.';
-  return template
-    .replace('{{TODAY}}', today())
-    .replace('{{BUSINESS_JSON}}', JSON.stringify(cfg, null, 2))
-    .replace('{{ITEMS}}', itemsBlock);
+  return fillTemplate(template, {
+    TODAY: today(),
+    BUSINESS_JSON: JSON.stringify(cfg, null, 2),
+    ITEMS: itemsBlock,
+  });
 }
 
 function buildDecisionPrompt(root, decisionText) {
@@ -183,11 +219,12 @@ function buildDecisionPrompt(root, decisionText) {
         ? path.join(root, 'config', 'business.example.json')
         : path.join(PKG_ROOT, 'config', 'business.example.json')
     );
-  return template
-    .replace('{{TODAY}}', today())
-    .replace('{{COUNCIL_JSON}}', JSON.stringify(council, null, 2))
-    .replace('{{BUSINESS_JSON}}', JSON.stringify(cfg, null, 2))
-    .replace('{{DECISION}}', decisionText);
+  return fillTemplate(template, {
+    TODAY: today(),
+    COUNCIL_JSON: JSON.stringify(council, null, 2),
+    BUSINESS_JSON: JSON.stringify(cfg, null, 2),
+    DECISION: decisionText,
+  });
 }
 
 function buildReviewPrompt(root) {
@@ -196,9 +233,10 @@ function buildReviewPrompt(root) {
     'utf8'
   );
   const recent = recentBriefs(root, 7);
-  return template
-    .replace('{{TODAY}}', today())
-    .replace('{{RECENT_BRIEFS}}', recent || '(no previous briefs yet)');
+  return fillTemplate(template, {
+    TODAY: today(),
+    RECENT_BRIEFS: recent || '(no previous briefs yet)',
+  });
 }
 
 function buildFocusPrompt(root, activity) {
@@ -219,10 +257,11 @@ function buildFocusPrompt(root, activity) {
     : 'No mission statement is available.';
   const briefContext = brief ||
     `No brief exists for today. Grade this activity against the mission: ${mission}`;
-  return template
-    .replace('{{TODAY}}', today())
-    .replace('{{TODAYS_BRIEF}}', briefContext)
-    .replace('{{CURRENT_ACTIVITY}}', activity);
+  return fillTemplate(template, {
+    TODAY: today(),
+    TODAYS_BRIEF: briefContext,
+    CURRENT_ACTIVITY: activity,
+  });
 }
 
 function claudeAvailable() {
@@ -488,6 +527,9 @@ module.exports = {
   loadConfig,
   validateConfig,
   gatherNotes,
+  fillTemplate,
+  PINNED_NOTE_MAX_CHARS,
+  NOTE_MAX_CHARS,
   recentBriefs,
   buildPrompt,
   buildFocusPrompt,

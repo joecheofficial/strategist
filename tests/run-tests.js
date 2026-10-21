@@ -297,6 +297,94 @@ check('split home resolves shipped assets and degrades without Claude', () => {
   fs.rmSync(emptyBin, { recursive: true, force: true });
 });
 
+check('pinned _*.md notes always come first, in name order, before the 5 newest notes', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'strategist-pinned-'));
+  const notes = path.join(home, 'notes');
+  fs.mkdirSync(notes, { recursive: true });
+  const old = new Date('2026-01-01T00:00:00Z');
+  for (const name of ['_revenue-scorecard.md', '_leads.md', '_open-invoices.md']) {
+    fs.writeFileSync(path.join(notes, name), 'state of ' + name);
+    fs.utimesSync(path.join(notes, name), old, old);
+  }
+  for (let i = 1; i <= 7; i++) {
+    const p = path.join(notes, 'day-' + i + '.md');
+    fs.writeFileSync(p, 'ordinary note ' + i);
+    const when = new Date(Date.UTC(2026, 9, i));
+    fs.utimesSync(p, when, when);
+  }
+  const text = strategist.gatherNotes(home, 5);
+  const order = [...text.matchAll(/^--- (pinned note|note): (.+) ---$/gm)].map((m) => m[2]);
+  assert(
+    JSON.stringify(order) === JSON.stringify([
+      '_leads.md', '_open-invoices.md', '_revenue-scorecard.md',
+      'day-7.md', 'day-6.md', 'day-5.md', 'day-4.md', 'day-3.md',
+    ]),
+    'unexpected note order: ' + order.join(', ')
+  );
+  assert(text.includes('--- pinned note: _leads.md ---'), 'pinned notes are not labelled');
+  assert(!text.includes('day-2.md') && !text.includes('day-1.md'), 'older ordinary notes leaked in');
+  fs.rmSync(home, { recursive: true, force: true });
+});
+
+check('a pinned state file linked into notes/ from elsewhere is still read', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'strategist-link-'));
+  fs.mkdirSync(path.join(home, 'notes'), { recursive: true });
+  fs.mkdirSync(path.join(home, 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(home, 'agents', 'leads.md'), 'three warm leads');
+  try {
+    fs.symlinkSync(path.join(home, 'agents', 'leads.md'), path.join(home, 'notes', '_leads.md'));
+  } catch (e) {
+    fs.rmSync(home, { recursive: true, force: true });
+    return; // symbolic links need extra rights on some Windows setups
+  }
+  const text = strategist.gatherNotes(home, 5);
+  assert(text && text.includes('--- pinned note: _leads.md ---') && text.includes('three warm leads'), 'linked pinned note was skipped');
+  fs.rmSync(home, { recursive: true, force: true });
+});
+
+check('pinned notes are capped at 4,000 characters and ordinary notes at 8,000', () => {
+  assert(strategist.PINNED_NOTE_MAX_CHARS === 4000, 'pinned cap changed');
+  assert(strategist.NOTE_MAX_CHARS === 8000, 'ordinary cap changed');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'strategist-caps-'));
+  fs.mkdirSync(path.join(home, 'notes'), { recursive: true });
+  const body = (n, tail) => 'x'.repeat(n) + tail;
+  fs.writeFileSync(path.join(home, 'notes', '_state.md'), body(3990, 'PIN-KEEP') + 'PIN-CUT');
+  fs.writeFileSync(path.join(home, 'notes', 'comments.md'), body(7900, 'STANDING CORRECTION') + 'y'.repeat(200) + 'NOTE-CUT');
+  const text = strategist.gatherNotes(home, 5);
+  const pinned = text.split('--- note: comments.md ---')[0];
+  const ordinary = text.split('--- note: comments.md ---')[1];
+  assert(!pinned.includes('PIN-CUT'), 'pinned note was not capped at 4,000');
+  assert(pinned.includes('[... truncated ...]'), 'pinned truncation marker missing');
+  assert(ordinary.includes('STANDING CORRECTION'), 'ordinary note lost text before 8,000 characters');
+  assert(!ordinary.includes('NOTE-CUT'), 'ordinary note was not capped at 8,000');
+  fs.rmSync(home, { recursive: true, force: true });
+});
+
+check('dollar patterns in notes and inputs are copied literally into every prompt', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'strategist-dollar-'));
+  for (const d of ['config', 'notes', 'briefs']) fs.mkdirSync(path.join(home, d), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, 'config', 'business.example.json'), path.join(home, 'config', 'business.json'));
+  const tricky = "Invoice $$500 paid; $& is a regex token; $' and $` too; also {{LEARNING}} literally";
+  fs.writeFileSync(path.join(home, 'notes', '_open-invoices.md'), tricky);
+  fs.writeFileSync(path.join(home, 'LEARNING.md'), 'lesson $1 and $<name>');
+  const prompt = strategist.buildPrompt({ root: home, weekly: false });
+  assert(prompt.includes(tricky), 'note text was garbled by replacement patterns');
+  assert(prompt.includes('lesson $1 and $<name>'), 'learning text was garbled');
+  assert(!/\{\{(TODAY|MODE|NOTES|PREVIOUS_BRIEFS|COUNCIL_JSON|BUSINESS_JSON)\}\}/.test(prompt), 'a placeholder was left unfilled');
+  assert((prompt.match(/lesson \$1/g) || []).length === 1, 'learning was injected into the note text');
+  assert(strategist.buildDecisionPrompt(home, 'charge $$ or $& more?').includes('charge $$ or $& more?'), 'decision text garbled');
+  assert(strategist.buildTriagePrompt(home, "chase $'late$' invoice").includes("chase $'late$' invoice"), 'triage text garbled');
+  assert(strategist.buildFocusPrompt(home, 'pricing at $$9').includes('pricing at $$9'), 'focus text garbled');
+  assert(strategist.fillTemplate('a {{X}} b {{Y}}', { X: '$&', Y: '{{X}}' }) === 'a $& b {{X}}', 'fillTemplate is not single-pass and literal');
+  fs.rmSync(home, { recursive: true, force: true });
+});
+
+check('council prompt tells the council to treat pinned notes as current facts', () => {
+  const prompt = fs.readFileSync(path.join(ROOT, 'prompts', 'council-brief-prompt.md'), 'utf8');
+  assert(/pinned note/i.test(prompt) && /current facts/i.test(prompt), 'pinned-note instruction missing');
+  assert(prompt.indexOf('pinned note') < prompt.indexOf('{{NOTES}}'), 'instruction must come before the notes');
+});
+
 fs.rmSync(sandbox, { recursive: true, force: true });
 
 console.log('');

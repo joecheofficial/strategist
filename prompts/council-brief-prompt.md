@@ -33,7 +33,9 @@ Council rules:
 {{BUSINESS_JSON}}
 ```
 
-### Recent notes from the owner (newest first)
+### Notes from the owner (pinned notes first, then the newest notes)
+
+Notes headed `pinned note` (file names that start with an underscore) are live state files the owner or their agents keep up to date, such as open leads, unpaid invoices or a revenue scorecard. Treat them as current facts, even when they did not change today, and let them override older notes and briefs.
 
 {{NOTES}}
 
