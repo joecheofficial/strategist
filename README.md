@@ -62,13 +62,15 @@ Two habits make the briefs dramatically better:
 
 Keep `config/business.json` current as your goals shift. The council scores time-boxed mission goals above everything else, so give your goals real dates.
 
-## Automating it
+## Daily check-in
 
-To get the brief every morning without running anything, add a scheduled job. On a Mac or Linux machine, ask Claude Code to "schedule strategist brief daily at 7am" from this folder, or add a cron line yourself:
+Get a short check-in every day without running anything. Run the interview once:
 
+```bash
+node bin/strategist.js checkin interview
 ```
-0 7 * * * node /path/to/strategist/bin/strategist.js brief >> /path/to/strategist/briefs/cron.log 2>&1
-```
+
+It asks what you want to see, what matters most to you, when, your time zone, and where it goes. The default is an email to yourself, through the mail sender your install already has; it never goes to anyone else. On a Mac it adds one daily job, `ai.allsorted.strategist-checkin`, only after the interview is done. Change anything later with `checkin set`, or stop it with `checkin off`. See CHECKIN.md for every option.
 
 ## Privacy
 
@@ -76,39 +78,4 @@ Everything stays on your machine: your config, your notes, your briefs. The busi
 
 ## License
 
-Personal Use License. You can use this for yourself, but you cannot resell it, share it, or use it in any commercial service. If you need to use it commercially, reach out through the distributor listed with your copy and we can figure out something that makes sense. See LICENSE for the full terms.
-
-## Updates
-
-This updates itself every week from this repo. Before it changes anything it backs up your own files, and if the self-test fails after an update it rolls back to the version you had. Your own files (config, notes, brand files, data) are never overwritten.
-
-```
-node scripts/self-update.js --status   # see the setting and the last check
-node scripts/self-update.js --now      # check and update right now
-node scripts/self-update.js --off      # turn weekly updates off
-node scripts/self-update.js --on       # turn them back on
-node scripts/self-update.js --realign  # only if it tells you to (see below)
-```
-
-### If the update says your copy "has its own commits"
-
-In early October 2026 this repo's published history was rewritten once (the same files, with the author details on the old commits changed). A copy cloned before that still holds the old versions of those commits, so a plain update cannot move it forward and used to report "has your own commits" every week.
-
-The updater now recognises that exact case: when every commit only your copy has is an old copy of one of this project's commits, and your files match the project exactly, it says so and offers a safe realignment:
-
-```
-node scripts/self-update.js --realign
-```
-
-That keeps your old history on a backup branch (`allsorted-backup/pre-realign-<date>`), backs up your config, notes and other personal files, moves your copy onto the current history without changing a single file, then updates normally (self-test and roll back included). Your `config/`, `notes/` and `briefs/` files are never touched.
-
-If your copy is too old to have `scripts/self-update.js`, or you prefer to do it by hand, this is the same thing in four commands, run from this folder:
-
-```
-git status                                        # must show no changed tracked files
-git branch allsorted-backup/pre-realign HEAD      # keep your old history
-git fetch origin
-git reset --keep origin/main                      # your untracked config, notes and briefs stay put
-```
-
-If you made commits of your own, the updater will not offer a realignment. Keep them on a branch (`git branch my-changes`) and ask your agent to re-apply them on top of `origin/main`.
+All Sorted Personal Use License. You can use this for yourself or for your own business, but you cannot resell it, share it, redistribute it, or offer it as a service. For commercial or redistribution rights, contact the distributor listed with your copy. See LICENSE for the full terms.

@@ -1,0 +1,27 @@
+{
+  "id": "agent/strategist/status",
+  "layer": "agent",
+  "owner": "strategist",
+  "title": "Check strategy brief configuration status",
+  "tags": ["strategist", "status", "doctor", "configured", "planning"],
+  "phrases": [
+    "is strategist configured",
+    "check strategist status",
+    "check my daily brief setup",
+    "do I need an api key for my morning brief",
+    "have I filled in my business details yet",
+    "why are my briefs coming out generic",
+    "is my chief of staff ready to use"
+  ],
+  "actions": ["report-configuration-status"],
+  "safety": {
+    "destructive": false,
+    "notes": "Reads local configuration only. Runs no command line tool, calls no network, and writes no brief."
+  },
+  "inputMode": "structured",
+  "requiredContext": [],
+  "outputMode": "text",
+  "fallbackPolicy": "worker_optional",
+  "taskClass": "planning",
+  "handler": "./status.js"
+}

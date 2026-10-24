@@ -3,7 +3,12 @@
   "layer": "agent",
   "owner": "strategist",
   "title": "Generate a strategy brief",
-  "tags": ["strategy", "priorities", "brief", "planning"],
+  "tags": [
+    "strategy",
+    "priorities",
+    "brief",
+    "planning"
+  ],
   "phrases": [
     "generate my strategist brief",
     "ask strategist for today's priorities",
@@ -12,7 +17,9 @@
     "review the business and rank the top three actions",
     "prepare a weekly strategy review"
   ],
-  "actions": ["write-brief"],
+  "actions": [
+    "write-brief"
+  ],
   "safety": {
     "destructive": false,
     "notes": "Reads local business context and writes only inside the strategist briefs folder."

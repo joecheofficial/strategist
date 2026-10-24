@@ -21,13 +21,14 @@
  *   node bin/strategist.js decision "should I raise prices 20%"   frame a decision with the council
  *   node bin/strategist.js review           audit whether recent Top 3 priorities actually moved
  *   node bin/strategist.js check            validate config and environment
+ *   node bin/strategist.js checkin interview   set up the daily check-in (see CHECKIN.md)
  */
 
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const VERSION = '0.4.0';
+const VERSION = '2.7.0';
 const PKG_ROOT = path.resolve(__dirname, '..');
 
 function home() {
@@ -463,7 +464,7 @@ function cmdBrief(root, opts) {
   return 0;
 }
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
   const command = args[0] && !args[0].startsWith('--') ? args[0] : 'brief';
   const opts = {
@@ -472,6 +473,20 @@ function main() {
   };
   const root = home();
   let code;
+  if (command !== 'checkin' && !process.env.ALLSORTED_SCHEDULED && !process.env.ALLSORTED_UNATTENDED) {
+    const checkin = require('../lib/checkin-cli');
+    const ctx = checkin.locate(root);
+    const notice = checkin.offer(ctx);
+    if (notice) console.log(notice + '\n');
+  }
+  if (command === 'checkin') {
+    // The daily check-in has its own commands and settings (CHECKIN.md).
+    require('../lib/checkin-cli').main(args.slice(1), { home: root }).then(
+      (result) => { if (result.text) console.log(result.text); process.exit(result.code); },
+      (e) => { console.error('[strategist] ' + String(e && e.message ? e.message : e)); process.exit(1); }
+    );
+    return;
+  }
   if (command === 'setup') code = cmdSetup(root);
   else if (command === 'check') code = cmdCheck(root);
   else if (command === 'brief') {
@@ -512,7 +527,7 @@ function main() {
   }
   else {
     console.error('Unknown command: ' + command);
-    console.error('Commands: setup, brief [--weekly] [--print-prompt], focus "current activity", triage "item one; item two", decision "the decision", review, check');
+    console.error('Commands: setup, brief [--weekly] [--print-prompt], focus "current activity", triage "item one; item two", decision "the decision", review, check, checkin');
     code = 1;
   }
   process.exit(code);
