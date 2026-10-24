@@ -28,7 +28,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const VERSION = '2.7.0';
+const VERSION = '2.7.1';
 const PKG_ROOT = path.resolve(__dirname, '..');
 
 function home() {

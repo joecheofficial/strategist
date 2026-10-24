@@ -1,6 +1,6 @@
 {
   "name": "strategist",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "description": "A daily chief-of-staff for one business owner: a seven-persona strategy council that turns your config and notes into daily briefs, priority triage, decision framing, and follow-through reviews, via Claude Code.",
   "license": "SEE LICENSE IN LICENSE",
   "bin": {
