@@ -28,7 +28,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const VERSION = '2.7.1';
+const VERSION = '2.7.2';
 const PKG_ROOT = path.resolve(__dirname, '..');
 
 function home() {
@@ -533,8 +533,6 @@ async function main() {
   process.exit(code);
 }
 
-if (require.main === module) main();
-
 module.exports = {
   VERSION,
   home,
@@ -552,3 +550,6 @@ module.exports = {
   buildDecisionPrompt,
   buildReviewPrompt,
 };
+
+// Export helpers before the CLI starts, since check-in reuses fillTemplate.
+if (require.main === module) main();
