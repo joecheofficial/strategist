@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "enabled": false,
+  "completedAt": null,
+  "sections": ["priorities", "money", "calendar", "risks"],
+  "mattersMost": "Example: land two new retainer clients this month without dropping current client work",
+  "time": { "hour": 7, "minute": 30 },
+  "timeZone": "Europe/London",
+  "delivery": { "method": "email", "to": null },
+  "model": { "meteredApi": { "enabled": false, "dailyCapUsd": 1 } }
+}

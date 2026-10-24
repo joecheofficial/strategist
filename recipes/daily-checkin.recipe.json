@@ -1,0 +1,26 @@
+{
+  "id": "agent/strategist/daily-checkin",
+  "layer": "agent",
+  "owner": "strategist",
+  "title": "Daily check-in settings and setup",
+  "tags": ["strategist", "daily", "check-in", "brief", "planning"],
+  "phrases": [
+    "set up my daily check-in",
+    "change where my daily check-in goes",
+    "what time does my daily check-in arrive",
+    "show my daily check-in settings",
+    "stop my daily check-in email",
+    "is my morning check-in set up"
+  ],
+  "actions": ["report-checkin-settings"],
+  "safety": {
+    "destructive": false,
+    "notes": "Reads the check-in settings only and returns the interview steps. Sends nothing, writes nothing and changes no schedule."
+  },
+  "inputMode": "structured",
+  "requiredContext": [],
+  "outputMode": "text",
+  "fallbackPolicy": "deterministic_first",
+  "taskClass": "planning",
+  "handler": "./daily-checkin.js"
+}

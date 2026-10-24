@@ -3,7 +3,12 @@
   "layer": "agent",
   "owner": "strategist",
   "title": "Check current focus",
-  "tags": ["strategy", "focus", "priorities", "planning"],
+  "tags": [
+    "strategy",
+    "focus",
+    "priorities",
+    "planning"
+  ],
   "phrases": [
     "ask strategist whether I am drifting",
     "run a strategist focus check",
@@ -12,7 +17,9 @@
     "compare what I am doing with today's brief",
     "help me return to the highest priority action"
   ],
-  "actions": ["check-focus"],
+  "actions": [
+    "check-focus"
+  ],
   "safety": {
     "destructive": false,
     "notes": "Reads today's local brief and returns a focus verdict."
