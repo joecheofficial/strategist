@@ -15,7 +15,7 @@ function runRecipe(input = {}) {
   if (result.error || result.status !== 0) {
     return {
       status: "error",
-      reply: stderr || stdout || "Strategist could not triage the priorities. Check the local Claude command line tool.",
+      reply: stderr || stdout || "Strategist could not triage the priorities. Check the signed-in agent CLI.",
       metadata: { exitCode: result.status, taskClass: "planning" },
     };
   }

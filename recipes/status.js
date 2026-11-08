@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 // Zero-network configuration check. This module needs no API key and no
-// account: it calls the local `claude` command line tool and reads local files.
+// account: it calls the signed-in agent CLI and reads local files.
 //
 // The one environment variable the shipped code reads is STRATEGIST_HOME
 // (bin/strategist.js home()), which relocates the folder holding

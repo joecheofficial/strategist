@@ -5,17 +5,17 @@
  *
  * A daily chief-of-staff for one business owner. It reads the business
  * config you wrote, your recent notes, your recent briefs, and your lessons
- * file, then convenes a seven-persona strategy council (via Claude Code)
+ * file, then convenes a seven-persona strategy council (through All Sorted Dispatch)
  * and writes one short, direct brief to the briefs folder.
  *
  * Read-only on your business. It never sends messages, never touches
- * money, never calls any API except the local `claude` command line tool.
+ * money, never calls any API except the signed-in agent CLI.
  *
  * Commands:
  *   node bin/strategist.js setup            create folders + starter config
  *   node bin/strategist.js brief            generate today's brief
  *   node bin/strategist.js brief --weekly   generate a weekly review instead
- *   node bin/strategist.js brief --print-prompt   write the prompt only (no Claude call)
+ *   node bin/strategist.js brief --print-prompt   write the prompt only (no model call)
  *   node bin/strategist.js focus "what I'm doing right now"   check for mid-day drift
  *   node bin/strategist.js triage "item one; item two; item three"   rank candidate priorities
  *   node bin/strategist.js decision "should I raise prices 20%"   frame a decision with the council
@@ -26,9 +26,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const agent = require('../lib/agent-route');
 
-const VERSION = '2.7.2';
+const VERSION = '2.9.0';
 const PKG_ROOT = path.resolve(__dirname, '..');
 
 function home() {
@@ -265,25 +265,8 @@ function buildFocusPrompt(root, activity) {
   });
 }
 
-function claudeAvailable() {
-  const res = spawnSync('claude', ['--version'], { encoding: 'utf8' });
-  return !res.error && res.status === 0;
-}
-
-function runClaude(prompt) {
-  const res = spawnSync('claude', ['-p'], {
-    input: prompt,
-    encoding: 'utf8',
-    maxBuffer: 32 * 1024 * 1024,
-  });
-  if (res.error || res.status !== 0) {
-    const detail = res.error
-      ? 'the claude command line tool is unavailable'
-      : (res.stderr || '').trim() || 'claude exited with status ' + res.status;
-    return { ok: false, detail };
-  }
-  return { ok: true, text: (res.stdout || '').trim() };
-}
+function agentAvailable() { return agent.run('', true).ok; }
+function runAgent(prompt) { return agent.run(prompt); }
 
 function ensureDirs(root) {
   for (const d of ['config', 'notes', 'briefs']) {
@@ -340,11 +323,11 @@ function cmdCheck(root) {
   console.log('Notes: ' + count(notesDir, /\.(md|txt)$/i));
   console.log('Briefs: ' + count(briefsDir, /\.md$/i));
   console.log('Focus: ready (uses today\'s brief when present)');
-  if (claudeAvailable()) {
-    console.log('Claude Code CLI: found');
+  if (agentAvailable()) {
+    console.log('Agent login: found');
   } else {
     console.log(
-      'Claude Code CLI: not found. Briefs will fall back to writing a prompt file you paste into Claude yourself.'
+      'Agent login: unavailable. Briefs will fall back to a prompt file you can use with your preferred assistant.'
     );
   }
   return failed ? 1 : 0;
@@ -358,12 +341,12 @@ function cmdFocus(root, activity) {
   ensureDirs(root);
   const prompt = buildFocusPrompt(root, activity);
   const promptPath = path.join(root, 'briefs', today() + '-focus-prompt.md');
-  const res = runClaude(prompt);
+  const res = runAgent(prompt);
   if (!res.ok) {
     fs.writeFileSync(promptPath, prompt);
-    console.error('Could not run the claude command line tool: ' + res.detail);
+    console.error('Could not run the agent: ' + res.detail);
     console.error('Fallback: the full prompt was saved to ' + promptPath);
-    console.error('Paste its contents into Claude to get your focus check.');
+    console.error('Paste its contents into your preferred assistant to get your focus check.');
     return 1;
   }
   console.log(res.text);
@@ -374,12 +357,12 @@ function cmdTriage(root, itemsText) {
   ensureDirs(root);
   const prompt = buildTriagePrompt(root, itemsText);
   const promptPath = path.join(root, 'briefs', today() + '-triage-prompt.md');
-  const res = runClaude(prompt);
+  const res = runAgent(prompt);
   if (!res.ok) {
     fs.writeFileSync(promptPath, prompt);
-    console.error('Could not run the claude command line tool: ' + res.detail);
+    console.error('Could not run the agent: ' + res.detail);
     console.error('Fallback: the full prompt was saved to ' + promptPath);
-    console.error('Paste its contents into Claude to get your triage.');
+    console.error('Paste its contents into your preferred assistant to get your triage.');
     return 1;
   }
   console.log(res.text);
@@ -394,12 +377,12 @@ function cmdDecision(root, decisionText) {
   ensureDirs(root);
   const prompt = buildDecisionPrompt(root, decisionText);
   const promptPath = path.join(root, 'briefs', today() + '-decision-prompt.md');
-  const res = runClaude(prompt);
+  const res = runAgent(prompt);
   if (!res.ok) {
     fs.writeFileSync(promptPath, prompt);
-    console.error('Could not run the claude command line tool: ' + res.detail);
+    console.error('Could not run the agent: ' + res.detail);
     console.error('Fallback: the full prompt was saved to ' + promptPath);
-    console.error('Paste its contents into Claude to get the council\'s take.');
+    console.error('Paste its contents into your preferred assistant to get the council\'s take.');
     return 1;
   }
   console.log(res.text);
@@ -410,12 +393,12 @@ function cmdReview(root) {
   ensureDirs(root);
   const prompt = buildReviewPrompt(root);
   const promptPath = path.join(root, 'briefs', today() + '-review-prompt.md');
-  const res = runClaude(prompt);
+  const res = runAgent(prompt);
   if (!res.ok) {
     fs.writeFileSync(promptPath, prompt);
-    console.error('Could not run the claude command line tool: ' + res.detail);
+    console.error('Could not run the agent: ' + res.detail);
     console.error('Fallback: the full prompt was saved to ' + promptPath);
-    console.error('Paste its contents into Claude to get your review.');
+    console.error('Paste its contents into your preferred assistant to get your review.');
     return 1;
   }
   console.log(res.text);
@@ -444,17 +427,17 @@ function cmdBrief(root, opts) {
   if (opts.printPrompt) {
     fs.writeFileSync(promptPath, prompt);
     console.log('Prompt written to: ' + promptPath);
-    console.log('Paste its contents into Claude to get your brief.');
+    console.log('Paste its contents into your preferred assistant to get your brief.');
     return 0;
   }
 
-  console.error('[strategist] convening the council via Claude Code...');
-  const res = runClaude(prompt);
+  console.error('[strategist] convening the council through All Sorted Dispatch...');
+  const res = runAgent(prompt);
   if (!res.ok) {
     fs.writeFileSync(promptPath, prompt);
-    console.error('Could not run the claude command line tool: ' + res.detail);
+    console.error('Could not run the agent: ' + res.detail);
     console.error('Fallback: the full prompt was saved to ' + promptPath);
-    console.error('Paste its contents into Claude to get your brief.');
+    console.error('Paste its contents into your preferred assistant to get your brief.');
     return 1;
   }
   const outPath = path.join(root, 'briefs', stamp + '.md');
