@@ -22,7 +22,7 @@ function runRecipe(input = {}) {
   if (result.error || result.status !== 0) {
     return {
       status: "error",
-      reply: stderr || stdout || "Strategist could not run the focus check. Check the local Claude command line tool.",
+      reply: stderr || stdout || "Strategist could not run the focus check. Check the signed-in agent CLI.",
       metadata: { exitCode: result.status, taskClass: "planning" },
     };
   }

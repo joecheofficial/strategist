@@ -9,6 +9,9 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
+// Test-only offline guard: PATH alone does not hide home or system CLIs.
+process.env.STRATEGIST_OFFLINE = "1";
+
 const ROOT = path.resolve(__dirname, '..');
 const strategist = require(path.join(ROOT, 'bin', 'strategist.js'));
 
@@ -349,6 +352,25 @@ check('council prompt tells the council to treat pinned notes as current facts',
   const prompt = fs.readFileSync(path.join(ROOT, 'prompts', 'council-brief-prompt.md'), 'utf8');
   assert(/pinned note/i.test(prompt) && /current facts/i.test(prompt), 'pinned-note instruction missing');
   assert(prompt.indexOf('pinned note') < prompt.indexOf('{{NOTES}}'), 'instruction must come before the notes');
+});
+
+check('daily check-in leads with cash evidence and uses the current 90-day plan', () => {
+  const { gatherData, dataBrief } = require('../lib/checkin-brief');
+  fs.writeFileSync(path.join(sandbox, 'notes', '_90-day-plan.md'), '# This week\n- Call three past clients\n');
+  fs.writeFileSync(path.join(sandbox, 'notes', '_cash-received.md'), '- $500 received on Monday\n');
+  fs.writeFileSync(path.join(sandbox, 'notes', '_open-invoices.md'), '- $900 due Friday\n');
+  fs.writeFileSync(path.join(sandbox, 'notes', '_cash.md'), '- $200 needs checking\n');
+  fs.writeFileSync(path.join(sandbox, 'briefs', '2026-10-01.md'), '*Top 3 Today*\n- Old priority\n');
+  const cfg = { timeZone: 'UTC', mattersMost: 'Renewals', sections: ['priorities', 'money'] };
+  const data = gatherData({ home: sandbox, root: sandbox, cfg, now: Date.parse('2026-11-08T12:00:00Z') });
+  const output = dataBrief(data, cfg, 'Test fixture');
+  assert(output.startsWith('*Money in*\n- $500 received'), 'cash received must lead when selected');
+  assert(output.includes('*Money on the table*\n- $900 due'), 'open invoices must be separate from cash received');
+  assert(output.includes('*Focus today*\n- Call three past clients'), 'plan must drive focus');
+  assert(output.includes('*Money notes to review*\n- $200 needs checking'), 'legacy cash must stay unclassified');
+  assert(!output.includes('Old priority'), 'stale brief displaced the plan');
+  assert(dataBrief({ ...data, received: [] }, cfg, 'Test fixture').includes('*Money in*\n- Unknown'), 'missing cash source became a number');
+  assert(!dataBrief(data, { ...cfg, sections: ['priorities'] }, 'Test fixture').includes('$500'), 'cash appeared when deselected');
 });
 
 fs.rmSync(sandbox, { recursive: true, force: true });

@@ -53,10 +53,10 @@ You can also edit `strategist/config/daily-checkin.json` by hand, then run `chec
 
 ## Who writes it
 
-1. When you run it yourself (`checkin run --now`), your own Claude Code login writes it, like `strategist brief`.
-2. When the schedule runs it, it uses the shared installed native CLI runner with your own Claude Code or Codex login. Tools are disabled and the typed reply must match the request hash. If sign-in is locked or unavailable, it keeps a data-only check-in and leaves a notice for your next Strategist session. Standalone copies without the shared runner keep the data-only fallback.
+1. Manual and scheduled check-ins use All Sorted Dispatch. It tries the owner's `workingLLM` in `config/llm-defaults.json` first, then another signed-in CLI. `auto` means no preference.
+2. Installed copies use the shared runtime. Standalone copies include the same runner. Tools and MCP are disabled, API keys are removed, and the typed reply must match the request hash.
 3. The metered Anthropic API is used only if you turned it on (`checkin set --metered-api on`), with your own key from your private settings, and never more than your daily cap (at most 1 USD a day).
-4. Otherwise you get the data-only check-in: built straight from your files, with no model. It says so at the bottom, and why.
+4. If no permitted route can answer, you get the data-only check-in, built from your files. It says why at the bottom.
 
 Nothing fails silently: each run writes a receipt in `strategist/briefs/checkin-receipts/`.
 
@@ -68,7 +68,9 @@ On a Mac it is a launchd job named `ai.allsorted.strategist-checkin`. It is adde
 
 The check-in reads your Strategist files: `config/business.json`, your latest brief, and your pinned notes. Keep these current and the matching sections fill in:
 
-- `notes/_open-invoices.md` for Money
+- `notes/_90-day-plan.md` for Focus today. Keep this week's approved next actions as a short bullet list in priority order. Put the full plan in your project folder and refresh this list when the plan changes.
+- `notes/_cash-received.md` for Money in. Add confirmed receipts as bullets with date, amount, currency, and source. Record each receipt once.
+- `notes/_open-invoices.md` for Money on the table. Add unpaid items and their next action separately from money you already received. Older money notes still appear under Money notes to review until you classify their entries.
 - `notes/_leads.md` for Pipeline
 - `notes/_follow-ups.md` for People to follow up with
 - `notes/_deadlines.md` for Risks

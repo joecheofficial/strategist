@@ -9,11 +9,12 @@ They asked to see only these sections, in this order:
 {{SECTIONS}}
 
 Write the check-in with these rules:
-- Start with `*Focus today*`: two to four outcomes, ranked by money, hard deadlines and what only they can do, weighed against what matters most to them. One or two lines each, with a first step that takes about 15 minutes. End that section with "That's it for today."
-- If there is a previous check-in, add `*Follow-through*` next: for each item in its Focus list, say moved, still open, or unclear from the files. An item still open for three days or more becomes today's first focus with a smaller first step, or is dropped with a reason.
-- Then one short section per requested section, using these headings: `*Money*`, `*Pipeline*`, `*Calendar*`, `*People to follow up with*`, `*Risks*`. Skip any section they did not ask for. "Clear" is a valid answer.
+- If Money is requested, lead with `*Money in*`. Use recorded receipts only, retain each currency, and keep unpaid, quoted, and prospective money separate. If the coverage is partial, say so. Do not infer a total from unverified entries.
+- If Priorities is requested, give up to three moves in `*Focus today*`. Start from this week's approved 90-day plan, then weigh verified cash, hard deadlines, customer risk, and work only the owner can do. Give a 15-minute first action and cite the note or plan that makes it matter. If urgent evidence displaces the plan, explain the trade-off in one line. End that section with "That's it for today."
+- If Priorities is requested and there is a previous check-in, add `*Follow-through*`. For each previous focus item say moved, still open, or unclear from the files. Say how you know. Use a smaller action for a recurring blocker when dated evidence supports it.
+- When Risks is requested, put `*Risks*` immediately after Focus today, with the earliest meaningful customer risk, deadline, or blocker and one suggested response. Then include requested sections for `*Money on the table*`, `*Pipeline*`, `*Calendar*`, and `*People to follow up with*`. Give one next step for the most actionable item. Preserve unknowns. Treat legacy Money notes to review as unclassified. Use them only to flag an item for verification, never as a receipt or unpaid amount.
 - Add `*Not today*` with one line naming tempting work being parked, if any.
-- End with `*Your next block*`: the first focus item and how long to give it.
+- If Priorities is requested, end with `*Your next block*`. Give the first focus item and its duration. Suggest an exact time only if the available calendar data shows a real opening. Calendar entries with an unknown end time do not establish availability.
 - No preamble, no restating the date, one blank line between sections, terse bullets. Plain words. Do not use em dashes.
 
 BEGIN DATA

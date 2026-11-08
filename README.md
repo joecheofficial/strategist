@@ -1,6 +1,6 @@
 # Strategist
 
-A daily chief-of-staff for your business. Every morning it reads what you told it about your business, plus any notes you dropped in, convenes a council of seven world-class strategy thinkers (via Claude Code), and hands you one short brief: the three things that matter today, what is at risk, where the money is, and whether you are drifting off mission.
+A daily chief-of-staff for your business. Every morning it reads what you told it about your business, plus any notes you dropped in, convenes a council of seven world-class strategy thinkers (through All Sorted Dispatch), and hands you one short brief: the three things that matter today, what is at risk, where the money is, and whether you are drifting off mission.
 
 ## What it actually does
 
@@ -16,11 +16,11 @@ Running a business means holding too much in your head. The Strategist takes tha
 
 The council is seven personas with distinct lenses: Ray Dalio (truth and synthesis), Alex Hormozi (offers), April Dunford (positioning), Roger Martin (where to play), Rita McGrath (when to cut), Charlie Munger (inversion and risk), and Greg McKeown (essential focus). Each reasons alone first, then the chairman synthesizes.
 
-It is an advisor, not a doer. It never sends messages, never touches money, never calls any online service itself. The only thing it runs is the Claude Code command on your own machine, and the only thing it writes is a Markdown file in your briefs folder.
+It is an advisor, not a doer. It never sends messages, never touches money, never calls any online service itself. The only thing it runs is a signed-in agent CLI chosen by All Sorted Dispatch, and the only thing it writes is a Markdown file in your briefs folder.
 
 ## Install
 
-You need [Node.js](https://nodejs.org) and [Claude Code](https://claude.com/claude-code) installed. Then, from this folder:
+You need Node.js and a signed-in Claude Code or Codex CLI. Then, from this folder:
 
 ```bash
 node bin/strategist.js setup
@@ -40,7 +40,7 @@ node bin/strategist.js review           # audit whether recent Top 3 priorities 
 node bin/strategist.js check            # confirm config and setup are healthy
 ```
 
-Briefs are saved to `briefs/YYYY-MM-DD.md`. If the `claude` command is not installed, the tool writes the full prompt to a file instead and tells you to paste it into Claude yourself. Same brief, one extra step.
+Briefs are saved to `briefs/YYYY-MM-DD.md`. If no signed-in agent CLI can answer, the tool writes the full prompt to a file instead and tells you to use it with your preferred assistant. Same brief, one extra step.
 
 `focus` prints a short, mid-day verdict: `ON TRACK`, `DRIFTING`, or `RABBIT HOLE`, tied to today's Top 3. It writes no brief on success. If no brief exists today, it assesses the current activity against the mission in your business config.
 
@@ -74,8 +74,10 @@ It asks what you want to see, what matters most to you, when, your time zone, an
 
 ## Privacy
 
-Everything stays on your machine: your config, your notes, your briefs. The business context is sent to Claude only when a brief is generated, through your own Claude Code login, under your own account.
+Everything stays on your machine: your config, your notes, your briefs. Business context is sent to the provider selected by All Sorted Dispatch when text is generated, through your own login.
 
 ## License
 
 All Sorted Personal Use License. You can use this for yourself or for your own business, but you cannot resell it, share it, redistribute it, or offer it as a service. For commercial or redistribution rights, contact the distributor listed with your copy. See LICENSE for the full terms.
+
+All Sorted Dispatch reads `config/llm-defaults.json` in your All Sorted folder and tries `workingLLM` first. `auto` means no preference. If that CLI cannot answer, it tries another signed-in CLI. Installed copies use the shared runtime; standalone copies include the same tool-free runner. No API key is used for this route.
