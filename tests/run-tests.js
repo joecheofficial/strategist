@@ -45,6 +45,54 @@ for (const f of [
   fs.copyFileSync(path.join(ROOT, f[0]), path.join(sandbox, f[0]));
 }
 
+check('native Windows finds Claude and keeps the user login environment', () => {
+  const home = path.join(sandbox, 'Windows User');
+  const bin = path.join(home, '.local', 'bin');
+  fs.mkdirSync(bin, { recursive: true });
+  fs.writeFileSync(path.join(bin, 'claude.exe'), '');
+  execFileSync(process.execPath, ['-e', `
+    const assert = require('node:assert/strict');
+    const path = require('node:path');
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const home = process.argv[2];
+    const bin = path.join(home, '.local', 'bin');
+    process.env.SystemRoot = home;
+    process.env.TEMP = home;
+    const subprocess = require('node:child_process');
+    subprocess.execFileSync = (command, args, options) => {
+      assert.equal(path.basename(command), 'powershell.exe');
+      assert(args.includes('-NoProfile'));
+      assert(options.env.ALLSORTED_ACL_TARGET);
+      if (process.env.STRATEGIST_TEST_DENY_ACL) throw new Error('Access check failed');
+    };
+    const adapter = require(path.join(process.argv[1], 'lib', 'cli-provider-adapter.js'));
+    const env = { UserProfile: home, LocalAppData: home, SystemRoot: home, Path: bin, ANTHROPIC_API_KEY: 'fixture' };
+    const binary = adapter.resolveBinary('claude-code', env);
+    assert.equal(binary, require('node:fs').realpathSync(path.join(bin, 'claude.exe')));
+    const child = adapter.childEnv(env, binary);
+    assert.equal(child.USERPROFILE, home);
+    assert.equal(child.LOCALAPPDATA, home);
+    assert.equal(child.SystemRoot, home);
+    assert(!('ANTHROPIC_API_KEY' in child));
+    const route = require(path.join(process.argv[1], 'lib', 'agent-route.js'));
+    delete process.env.STRATEGIST_HOME;
+    delete process.env.ALLSORTED_ROOT;
+    assert.equal(route.installRoot(), process.argv[1]);
+    assert.equal(path.basename(route.helper(home)), 'agent-llm.js');
+    process.env.STRATEGIST_TEST_DENY_ACL = '1';
+    assert.equal(adapter.resolveBinary('claude-code', env), null);
+    assert.throws(() => route.helper(home), /could not be loaded safely/);
+    delete process.env.STRATEGIST_TEST_DENY_ACL;
+    adapter.probe('claude-code', { env, deps: { run: async (command, args, context) => {
+      assert.equal(command, binary);
+      assert.deepEqual(args, ['auth', 'status', '--json']);
+      assert.equal(context.env.USERPROFILE, home);
+      assert(!('ANTHROPIC_API_KEY' in context.env));
+      return { code: 0, stdout: JSON.stringify({ loggedIn: true, authMethod: 'claude.ai' }) };
+    } } }).then(result => assert.equal(result.ok, true));
+  `, ROOT, home], { stdio: ['ignore', 'pipe', 'pipe'] });
+});
+
 check('council.json has exactly 7 personas including mckeown', () => {
   const council = JSON.parse(
     fs.readFileSync(path.join(ROOT, 'config', 'council.json'), 'utf8')
