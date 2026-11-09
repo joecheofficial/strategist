@@ -1,0 +1,81 @@
+name: Strategist native Windows smoke
+on:
+  push:
+    branches: [codex/strategist-windows-smoke]
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 5abcb951b6688fc0ae94b9c5e0a3303b69838c55
+          persist-credentials: false
+      - name: Test signed-in CLI routing and permission refusal
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:USERPROFILE 'Strategist Windows Smoke'
+          $package = Join-Path $root 'strategist'
+          $bin = Join-Path $root 'CLI bin'
+          New-Item -ItemType Directory -Path $package,$bin | Out-Null
+          Copy-Item -Path bin,config,lib,prompts,recipes,package.json -Destination $package -Recurse
+          $exe = Join-Path $bin 'claude.exe'
+          Add-Type -OutputAssembly $exe -OutputType ConsoleApplication -TypeDefinition @'
+          using System;
+          using System.Text.RegularExpressions;
+          public class Fixture {
+              public static int Main(string[] args) {
+                  if (Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY") != null) return 2;
+                  if (String.IsNullOrEmpty(Environment.GetEnvironmentVariable("USERPROFILE"))) return 3;
+                  if (args.Length > 0 && args[0] == "auth") {
+                      Console.WriteLine("{\"loggedIn\":true,\"authMethod\":\"claude.ai\"}");
+                      return 0;
+                  }
+                  string input = Console.In.ReadToEnd();
+                  Match match = Regex.Match(input, "\"requestHash\"\\s*:\\s*\"([a-f0-9]{64})\"");
+                  if (!match.Success) return 4;
+                  Console.WriteLine("{\"type\":\"system\",\"subtype\":\"init\",\"tools\":[\"StructuredOutput\"],\"mcp_servers\":[],\"apiKeySource\":\"none\"}");
+                  Console.WriteLine("{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"structured_output\":{\"requestHash\":\"" + match.Groups[1].Value + "\",\"text\":\"Native Windows check-in fixture\"}}");
+                  return 0;
+              }
+          }
+          '@
+          $env:PATH = "$bin;$env:PATH"
+          $env:ANTHROPIC_API_KEY = 'must-not-reach-fixture'
+          $entry = Join-Path $package 'bin/strategist.js'
+          node $entry setup
+          if ($LASTEXITCODE) { throw 'setup failed' }
+          $cfg = Join-Path $package 'config/business.json'
+          $business = Get-Content -Raw -LiteralPath $cfg | ConvertFrom-Json
+          $business.owner = 'Synthetic Windows Owner'
+          [IO.File]::WriteAllText($cfg, ($business | ConvertTo-Json -Depth 10))
+          $check = node $entry check
+          $check | Write-Host
+          if ($LASTEXITCODE -or $check -notcontains 'Agent login: found' -or $check -notcontains 'Config: ok') { throw 'native auth probe failed' }
+          node $entry checkin interview --sections priorities --matters 'Fixture plan' --time 08:00 --timezone UTC --deliver local --no-schedule
+          if ($LASTEXITCODE) { throw 'check-in setup failed' }
+          $out = node $entry checkin run --now
+          $out | Write-Host
+          if ($LASTEXITCODE -or ($out -join ' ') -notmatch 'Native Windows check-in fixture') { throw 'native check-in did not use the CLI' }
+          $unsafe = Join-Path $root 'Writable CLI bin'
+          New-Item -ItemType Directory -Path $unsafe | Out-Null
+          Copy-Item -LiteralPath $exe -Destination $unsafe
+          icacls $unsafe /grant '*S-1-5-32-545:(OI)(CI)(M)'
+          if ($LASTEXITCODE) { throw 'fixture ACL could not be written' }
+          $env:FIXTURE_UNSAFE_BIN = $unsafe
+          $env:FIXTURE_HOME = $root
+          $env:FIXTURE_ADAPTER = Join-Path $package 'lib/cli-provider-adapter.js'
+          $testFile = Join-Path $root 'verify-acl.js'
+          @'
+          const assert = require("node:assert/strict");
+          const adapter = require(process.env.FIXTURE_ADAPTER);
+          assert.equal(adapter.resolveBinary("claude-code", {
+            PATH: process.env.FIXTURE_UNSAFE_BIN, USERPROFILE: process.env.FIXTURE_HOME
+          }), null);
+          console.log("Writable CLI directory refused");
+          '@ | Set-Content -LiteralPath $testFile -Encoding Ascii
+          node $testFile
+          if ($LASTEXITCODE) { throw 'writable CLI was not refused' }
