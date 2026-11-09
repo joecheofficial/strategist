@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: 5abcb951b6688fc0ae94b9c5e0a3303b69838c55
+          ref: 3b74d385a05a7577f5d41ecffac61cf2f7239edb
           persist-credentials: false
       - name: Test signed-in CLI routing and permission refusal
         shell: powershell
