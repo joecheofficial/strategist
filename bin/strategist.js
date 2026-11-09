@@ -28,7 +28,7 @@ const fs = require('fs');
 const path = require('path');
 const agent = require('../lib/agent-route');
 
-const VERSION = '2.9.0';
+const VERSION = '2.9.1';
 const PKG_ROOT = path.resolve(__dirname, '..');
 
 function home() {
