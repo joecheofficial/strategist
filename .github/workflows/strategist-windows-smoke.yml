@@ -45,6 +45,30 @@ jobs:
           '@
           $env:PATH = "$bin;$env:PATH"
           $env:ANTHROPIC_API_KEY = 'must-not-reach-fixture'
+          $env:SMOKE_PACKAGE = $package
+          $env:SMOKE_EXE = $exe
+          $diag = Join-Path $root 'diagnose.js'
+          @'
+          const cp = require('node:child_process');
+          const exec = cp.execFileSync;
+          cp.execFileSync = (file, args, opts) => {
+            try {
+              return exec(file, args, { ...opts, stdio: ['ignore', 'pipe', 'pipe'] });
+            } catch (error) {
+              console.error('ACL failure', opts.env.ALLSORTED_ACL_TARGET, error.status, error.code, String(error.stderr));
+              throw error;
+            }
+          };
+          const path = require('node:path');
+          const pkg = process.env.SMOKE_PACKAGE;
+          const adapter = require(path.join(pkg, 'lib', 'cli-provider-adapter'));
+          const route = require(path.join(pkg, 'lib', 'agent-route'));
+          console.log('Executable ACL', adapter.windowsPrivateFile(process.env.SMOKE_EXE));
+          console.log('Resolved CLI', adapter.resolveBinary('claude-code'));
+          console.log('Helper', route.helper(route.installRoot()));
+          adapter.probe('claude-code').then(result => console.log('Probe', result));
+          '@ | Set-Content -LiteralPath $diag -Encoding Ascii
+          node $diag
           $entry = Join-Path $package 'bin/strategist.js'
           node $entry setup
           if ($LASTEXITCODE) { throw 'setup failed' }
